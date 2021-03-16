@@ -16,6 +16,12 @@ import Image from "@ckeditor/ckeditor5-image/src/image";
 import ImageCaption from "@ckeditor/ckeditor5-image/src/imagecaption";
 import ImageStyle from "@ckeditor/ckeditor5-image/src/imagestyle";
 import ImageToolbar from "@ckeditor/ckeditor5-image/src/imagetoolbar";
+
+// Custom Plugins
+import HtmlEmbed from '@ckeditor/ckeditor5-html-embed/src/htmlembed';
+import Font from '@ckeditor/ckeditor5-font/src/font';
+import PageBreak from '@ckeditor/ckeditor5-page-break/src/pagebreak';
+
 import Link from "@ckeditor/ckeditor5-link/src/link";
 import List from "@ckeditor/ckeditor5-list/src/list";
 import Paragraph from "@ckeditor/ckeditor5-paragraph/src/paragraph";
@@ -32,13 +38,14 @@ import TodoList from "@ckeditor/ckeditor5-list/src/todolist";
 import OPMacroListPlugin from "./plugins/op-macro-list-plugin";
 import OPAttachmentListenerPlugin from './plugins/op-attachment-listener-plugin';
 import OpImageAttachmentLookup from './plugins/op-image-attachment-lookup/op-image-attachment-lookup-plugin';
-import CommonMark from './commonmark/commonmark';
+// import CommonMark from './commonmark/commonmark';
 import OPSourceCodePlugin from './plugins/op-source-code.plugin';
 // import Mention from "../forked/ckeditor5-mention/src/mention";
 import Mention from "@ckeditor/ckeditor5-mention/src/mention";
 import {MentionCaster} from './mentions/mentions-caster';
 import ImageResize from "@ckeditor/ckeditor5-image/src/imageresize";
 import OpCustomCssClassesPlugin from "./plugins/op-custom-css-classes-plugin";
+
 
 // We divide our plugins into separate concerns here
 // in order to enable / disable each group by configuration
@@ -64,6 +71,11 @@ export const builtinPlugins = [
 	Strikethrough,
 	BlockQuote,
 	Heading,
+	//Begin Custom Plugins
+	HtmlEmbed,
+	Font,
+	PageBreak,
+	//End Custom Plugins
 	Image,
 	ImageCaption,
 	ImageStyle,
@@ -75,7 +87,6 @@ export const builtinPlugins = [
 	TodoList,
 	Paragraph,
 	Typing,
-
 	// Built-in mentions
 	Mention,
 	MentionCaster,
@@ -86,14 +97,13 @@ export const builtinPlugins = [
 	OPPreviewPlugin,
 	OPSourceCodePlugin,
 
-	CommonMark,
+	// CommonMark,
 	Table,
 	TableToolbar,
 	TableProperties,
 	TableCellProperties,
 
 	OPMacroListPlugin,
-
 	OpCustomCssClassesPlugin,
 ].concat(
 	// OpenProject Macro plugin group

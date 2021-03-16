@@ -55,6 +55,9 @@ export default class OPPreviewPlugin extends Plugin {
 				let link = getOPPreviewContext(editor);
 				let url = getOPPath(editor).api.v3.previewMarkup(link);
 
+				console.log('In get preview')
+				console.log('Data is');
+				console.log(editor.getData);
 				jQuery
 					.ajax({
 						data: editor.getData(),
