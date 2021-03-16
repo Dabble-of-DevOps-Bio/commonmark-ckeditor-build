@@ -18,11 +18,11 @@ export function textNodesPreprocessor(root, allowed_whitespace_nodes, allowed_ra
 	let node;
 	while(node = walker.nextNode()) {
 		// Strip NBSP whitespace in given nodes
-		if ( node.parentElement && allowed_whitespace_nodes.indexOf(node.parentElement.nodeName) >= 0) {
-		node.nodeValue = node.nodeValue
-			.replace(/^[\u00a0]+/g, ' ')
-			.replace(/[\u00a0]+$/g, ' ');
-		}
+		// if ( node.parentElement && allowed_whitespace_nodes.indexOf(node.parentElement.nodeName) >= 0) {
+		// node.nodeValue = node.nodeValue
+		// 	.replace(/^[\u00a0]+/g, ' ')
+		// 	.replace(/[\u00a0]+$/g, ' ');
+		// }
 
 		// Re-encode < and > that would otherwise be output as HTML by turndown
 		// https://github.com/domchristie/turndown/issues/106

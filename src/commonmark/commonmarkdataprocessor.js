@@ -79,7 +79,7 @@ export default class CommonMarkDataProcessor {
 		// with single spaces
 		textNodesPreprocessor(
 			domFragment,
-			['strong', 'em'],
+			['strong', 'em', 'span'],
 			// Ensure tables are allowed to have HTML contents
 			// OP#29457
 			['pre', 'code', 'table']
@@ -105,10 +105,10 @@ export default class CommonMarkDataProcessor {
 				return node.nodeName === 'LI' && node.closest('ul.todo-list');
 			},
 			replacement: function (content, node, options) {
-				content = content
-					.replace(/^\n+/, '') // remove leading newlines
-					.replace(/\n+$/, '\n') // replace trailing newlines with just a single one
-					.replace(/\n/gm, '\n    '); // indent
+				// content = content
+				// 	.replace(/^\n+/, '') // remove leading newlines
+				// 	.replace(/\n+$/, '\n') // replace trailing newlines with just a single one
+				// 	.replace(/\n/gm, '\n    '); // indent
 
 				var prefix = options.bulletListMarker + '   ';
 				var input = node.querySelector('input[type=checkbox]');

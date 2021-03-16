@@ -37,7 +37,7 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 			'op-macro-wp-button': [`${preFix}placeholder`, `${preFix}wp-button`],
 			'op-macro-child-pages': [`${preFix}placeholder`, `${preFix}child-pages`],
 			'op-macro-toc': [`${preFix}placeholder`, `${preFix}toc`],
-			'content': `${preFix}figure--content`
+			'content': `${preFix}figure--content`,
 		};
 		const attributesWithCustomClassesMap = {
 			'code': `${preFix}code`,
@@ -68,9 +68,14 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 	}
 
 	init() {
+		this._manageDivs(this.config);
 		this._addCustomCSSClassesToTheEditorContainer(this.editor);
 		this._addCustomCSSClassesToElements(this.config);
 		this._addCustomCSSClassesToAttributes(this.config);
+	}
+
+	afterInit() {
+		this._manageCustomClasses(this.config);
 	}
 
 	_addCustomCSSClassesToTheEditorContainer(editor) {
@@ -78,24 +83,132 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 	}
 
 	_addCustomCSSClassesToElements(config) {
-		this.editor.model.schema.extend('table', {allowAttributes: [ 'figureClasses' ]});
+		this.editor.model.schema.extend('table', {allowAttributes: ['figureClasses', 'customClass']});
 
 		this.editor
-				.conversion
-				.for('upcast')
-				.add(dispatcher => dispatcher.on(`element:table`, this._manageTableUpcast(config)), {priority: 'high'});
+			.conversion
+			.for('upcast')
+			.add(dispatcher => dispatcher.on(`element:table`, this._manageTableUpcast(config)), {priority: 'high'});
 
 		this.editor
-				.conversion
-				.for('downcast')
-				.add(dispatcher => dispatcher.on(`insert`, this._manageElementsInsertion(config), {priority: 'low'}));
+			.conversion
+			.for('downcast')
+			.add(dispatcher => dispatcher.on(`insert`, this._manageElementsInsertion(config), {priority: 'low'}));
 	}
 
 	_addCustomCSSClassesToAttributes(config) {
 		this.editor
-				.conversion
-				.for('downcast')
-				.add(dispatcher => dispatcher.on('attribute', this._manageAttributesInsertion(config), {priority: 'low'}));
+			.conversion
+			.for('downcast')
+			.add(dispatcher => dispatcher.on('attribute', this._manageAttributesInsertion(config), {priority: 'low'}));
+	}
+
+	_manageCustomClasses() {
+		this.editor.model.schema.extend('$text', {allowAttributes: ['customClass']});
+	}
+
+	_setupCustomClassConversion(viewElementName, modelElementName,) {
+		// The 'customClass' attribute stores custom classes from the data in the model so that schema definitions allow this attribute.
+		this.editor.model.schema.extend(modelElementName, {allowAttributes: ['customClass']});
+
+		// Defines upcast converters for the <img> and <table> elements with a "low" priority so they are run after the default converters.
+		this.editor.conversion.for('upcast').add(this._upcastCustomClasses(viewElementName), {priority: 'low'});
+
+		// Defines downcast converters for a model element with a "low" priority so they are run after the default converters.
+		// Use `downcastCustomClassesToFigure` if you want to keep your classes on <figure> element or `downcastCustomClassesToChild`
+		// if you would like to keep your classes on a <figure> child element, i.e. <img>.
+		this.editor.conversion.for('downcast').add(this._downcastCustomClassesToFigure(modelElementName), {priority: 'low'});
+		// editor.conversion.for( 'downcast' ).add( downcastCustomClassesToChild( viewElementName, modelElementName ), { priority: 'low' } );
+	}
+
+	_upcastCustomClasses(elementName) {
+		return dispatcher => dispatcher.on(`element:${elementName}`, (evt, data, conversionApi) => {
+			const viewItem = data.viewItem;
+			const modelRange = data.modelRange;
+
+			const modelElement = modelRange && modelRange.start.nodeAfter;
+
+			if (!modelElement) {
+				return;
+			}
+
+			// The upcast conversion picks up classes from the base element and from the <figure> element so it should be extensible.
+			const currentAttributeValue = modelElement.getAttribute('customClass') || [];
+
+			currentAttributeValue.push(...viewItem.getClassNames());
+
+			conversionApi.writer.setAttribute('customClass', currentAttributeValue, modelElement);
+		});
+	}
+
+	/**
+	 * Creates a downcast converter that adds classes defined in the `customClass` attribute to a <figure> element.
+	 *
+	 * This converter expects that the view element is nested in a <figure> element.
+	 */
+	_downcastCustomClassesToFigure(modelElementName) {
+		return dispatcher => dispatcher.on(`insert:${modelElementName}`, (evt, data, conversionApi) => {
+			const modelElement = data.item;
+
+			const viewFigure = conversionApi.mapper.toViewElement(modelElement);
+
+			if (!viewFigure) {
+				return;
+			}
+
+			// The code below assumes that classes are set on the <figure> element.
+			conversionApi.writer.addClass(modelElement.getAttribute('customClass'), viewFigure);
+		});
+	}
+
+	_manageDivs(config) {
+
+		console.log('in _manageDivs');
+
+		this.editor.model.schema.register('div', {
+			allowWhere: '$block',
+			allowContentOf: '$root'
+		});
+
+		this.editor.model.schema.addAttributeCheck(context => {
+			if (context.endsWith('div')) {
+				return true;
+			}
+		});
+
+		this.editor.model.schema.extend('div', {allowAttributes: ['customClass']});
+		this.editor.conversion.for('upcast').elementToElement({
+			view: 'div',
+			model: (viewElement, {writer: modelWriter}) => {
+				return modelWriter.createElement('div', viewElement.getAttributes());
+			}
+		});
+
+		this.editor.conversion.for('downcast').elementToElement({
+			model: 'div',
+			view: 'div'
+		});
+
+		this.editor.conversion.for('downcast').add(dispatcher => {
+			dispatcher.on('attribute', (evt, data, conversionApi) => {
+				// Convert <div> attributes only.
+				if (data.item.name != 'div') {
+					return;
+				}
+
+				const viewWriter = conversionApi.writer;
+				const viewDiv = conversionApi.mapper.toViewElement(data.item);
+
+				// In the model-to-view conversion we convert changes.
+				// An attribute can be added or removed or changed.
+				// The below code handles all 3 cases.
+				if (data.attributeNewValue) {
+					viewWriter.setAttribute(data.attributeKey, data.attributeNewValue, viewDiv);
+				} else {
+					viewWriter.removeAttribute(data.attributeKey, viewDiv);
+				}
+			});
+		});
 	}
 
 	_manageTableUpcast(config) {
@@ -139,6 +252,7 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 	}
 
 	_manageElementsInsertion(config) {
+		console.log('In manage elements insertion');
 		return (evt, data, conversionApi) => {
 			const elementsWithCustomClasses = Object.keys(config.elementsWithCustomClassesMap);
 			const viewWriter = conversionApi.writer;
@@ -148,7 +262,7 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 			let viewElements = [viewElement];
 			// Images and tables are nested in a figure element, listItems are nested inside ul or ol
 			// elements (only in the view, in the model are single elements).
-			const nestedElements = ['image', 'table', 'tableCell', 'tableRow', 'listItem'];
+			const nestedElements = ['image', 'table', 'tableCell', 'tableRow', 'listItem', 'span', 'div'];
 			const isNestedElement = nestedElements.includes(elementName);
 
 			if (!elementsWithCustomClasses.includes(elementName) || !viewElement) {
@@ -189,6 +303,8 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 			viewElements.forEach(viewElement => {
 				const elementKey = isNestedElement ? viewElement.name : elementName;
 				const elementClasses = config.elementsWithCustomClassesMap[elementKey];
+				console.log(viewElement);
+				console.log(elementClasses);
 
 				viewWriter.addClass(elementClasses, viewElement);
 			});
@@ -299,15 +415,15 @@ export default class OpCustomCssClassesPlugin extends Plugin {
 		const previousElement = listElement.previousSibling;
 		const nextElement = listElement.nextSibling;
 		const previousListElement = previousElement &&
-									previousElement.name === listElement.name &&
-									previousElement.hasClass(listTypeClass) ?
-										previousElement :
-										null;
+		previousElement.name === listElement.name &&
+		previousElement.hasClass(listTypeClass) ?
+			previousElement :
+			null;
 		const nextListElement = nextElement &&
-								nextElement.name === listElement.name &&
-								nextElement.hasClass(listTypeClass) ?
-									nextElement :
-									null;
+		nextElement.name === listElement.name &&
+		nextElement.hasClass(listTypeClass) ?
+			nextElement :
+			null;
 
 		if (previousListElement) {
 			viewWriter.mergeContainers(viewWriter.createPositionAfter(previousListElement));
